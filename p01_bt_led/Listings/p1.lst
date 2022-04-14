@@ -1,0 +1,473 @@
+A51 MACRO ASSEMBLER  P1                                                                   11/26/2018 09:23:22 PAGE     1
+
+
+MACRO ASSEMBLER A51 V8.2.7.0
+OBJECT MODULE PLACED IN .\Objects\p1.obj
+ASSEMBLER INVOKED BY: C:\Keil_v5\C51\BIN\A51.EXE p1.asm SET(SMALL) DEBUG PRINT(.\Listings\p1.lst) OBJECT(.\Objects\p1.ob
+                      j) EP
+
+LOC  OBJ            LINE     SOURCE
+
+  00E8                 1     TH0_INIT        EQU             232 ;init value of timer 0
+  0064                 2     T0_DV_INIT      EQU             100     ;vaule of divider of timer 0
+                       3     
+  00FB                 4     TH1_INIT        EQU             251
+  0006                 5     MAX_DISP        EQU             6
+                       6             
+  00A0                 7     KB_IN           EQU             P2
+                       8     
+----                   9     DSEG    AT      30H
+                      10             
+  0006                11     DISP_MAX        EQU     6       
+0030                  12     DISP_BUF:       DS      DISP_MAX
+0036                  13     DISP_PTR:       DS      1
+                      14             
+0037                  15     KB_STATE:       DS      1
+0038                  16     KB_TMR:         DS      1
+0039                  17     KB_PREV:        DS      1
+003A                  18     KB_REG:         DS      1       
+                      19     
+003B                  20     T0_DV:          DS      1
+003C                  21     CLOCK:  
+003C                  22     CL_SEC:         DS      1
+003D                  23     CL_MIN:         DS      1
+003E                  24     CL_HR:          DS      1
+                      25             
+----                  26     BSEG    AT      0
+0000                  27     CL_HC:          DBIT    1
+0001                  28     RQ_KB:          DBIT    1       
+0002                  29     RQ_HS:          DBIT    1
+                      30     
+                      31             
+----                  32     CSEG    AT      0
+                      33                     
+0000                  34     RESET:  
+0000 801B             35             JMP             INIT
+0003                  36     ORG 0003H ;external interupt int0
+0003 2193             37             JMP             INT0_ISR
+000B                  38     ORG 00BH  ;timer interrupt t0
+000B 213F             39             JMP             ON_T0_ISR
+0013                  40     ORG 0013H ;external interrupt int1
+0013 2193             41             JMP             INT1_ISR
+001B                  42     ORG 001BH ;timer interrupt t1
+001B 2162             43             JMP             ON_T1_ISR
+                      44             
+001D                  45     INIT:
+                      46             ; Memory clear
+001D 7F78             47             MOV             R7,#120;
+001F 7808             48             MOV             R0,#8 ;data pointer
+0021 7400             49             MOV             A,#0;
+0023 7C00             50             MOV     R4, #0
+0025                  51     INIT_LP:
+0025 F6               52             MOV             @R0,A
+0026 08               53             INC             R0
+0027 DFFC             54             DJNZ    R7,INIT_LP
+0029                  55     INIT_STACK:
+0029 75817F           56             MOV             SP,#7FH
+                      57             
+A51 MACRO ASSEMBLER  P1                                                                   11/26/2018 09:23:22 PAGE     2
+
+002C                  58     INIT_TIMER:
+002C 758CE8           59             MOV             TH0,#TH0_INIT ;set TH0 with value under label TH0_INIT, default 232
+002F 758DFB           60             MOV             TH1,#TH1_INIT ;set TH1 with value under label TH1_INIT, default 251
+0032 753B64           61             MOV             T0_DV,#T0_DV_INIT;set T0_DV with value under label T0_DV_INIT, defa
+                             ult 100
+0035 758911           62             MOV             TMOD,#00010001B ;timer mode selector
+0038 758850           63             MOV             TCON,#01010000B ;timer and interrupt control
+003B                  64     INIT_INT:
+003B 75A88A           65             MOV             IE,#10001010B   ;interrupt mask, T1  and T0 interrupts enabled
+003E 7586FF           66             MOV             P0 + 6,#0FFH ;Port overdrive, Clear port 0
+0041 75A601           67             MOV             P2 + 6,#1; Clear port 2, assigned as input
+0044 75B0FF           68             MOV             P3, #0FFH; Clear port 3
+                      69     
+0047 D200             70             SETB    CL_HC; ;Set bit
+                      71             
+                      72             
+0049                  73     MAIN_LOOP:                                      ;Main loop 
+0049 100008           74             JBC             CL_HC,ON_CL_UPD ;If clock has changed, 
+004C 100119           75             JBC             RQ_KB,ON_KEY
+004F 10020E           76             JBC             RQ_HS,ON_HS             
+0052 80F5             77             SJMP    MAIN_LOOP       
+                      78             
+0054                  79     ON_CL_UPD:      
+0054 783C             80             MOV             R0,#CLOCK
+                      81             ;MOV            R0,#101010101B
+0056 11B6             82             ACALL   PRINT_TIME
+0058 433201           83             ORL             DISP_BUF + 2,#1
+005B 433401           84             ORL             DISP_BUF + 4,#1
+005E 80E9             85             SJMP    MAIN_LOOP
+                      86             
+0060                  87     ON_HS:  
+0060 5332FE           88             ANL             DISP_BUF + 2,#0FEH
+0063 5334FE           89             ANL             DISP_BUF + 4,#0FEH
+0066 80E1             90             SJMP    MAIN_LOOP
+                      91             
+0068                  92     ON_KEY: 
+0068 E53A             93             MOV             A,KB_REG
+006A B40111           94             CJNE    A,#1H,ON_KEY_INC
+006D B40214           95             CJNE    A,#2H,ON_KEY_DEC
+0070 B40315           96             CJNE    A,#3H,ON_KEY_NEXT       
+0073 B40416           97             CJNE    A,#4H,ON_KEY_PREV       
+0076 B40517           98             CJNE    A,#5H,ON_KEY_ESC
+0079 B40618           99             CJNE    A,#6H,ON_KEY_ENTER              
+007C 80CB            100             SJMP    MAIN_LOOP       
+                     101             
+007E                 102     ON_KEY_INC:
+007E EC              103             MOV             A, R4
+007F 2401            104             ADD             A,#1
+0081 FC              105             MOV             R4,A
+0082 80C5            106             SJMP    MAIN_LOOP
+                     107     
+0084                 108     ON_KEY_DEC:
+0084 15B0            109             DEC             P3
+0086 80C1            110             SJMP    MAIN_LOOP
+                     111     
+0088                 112     ON_KEY_NEXT:
+0088 15B0            113             DEC             P3
+008A 80BD            114             SJMP    MAIN_LOOP
+                     115             
+008C                 116     ON_KEY_PREV:
+008C 15B0            117             DEC             P3
+008E 80B9            118             SJMP    MAIN_LOOP
+                     119             
+0090                 120     ON_KEY_ESC:
+0090 15B0            121             DEC             P3
+0092 80B5            122             SJMP    MAIN_LOOP
+A51 MACRO ASSEMBLER  P1                                                                   11/26/2018 09:23:22 PAGE     3
+
+                     123             
+0094                 124     ON_KEY_ENTER:
+0094 15B0            125             DEC             P3
+0096 80B1            126             SJMP    MAIN_LOOP
+                     127     
+                     128     
+0098                 129     CLOCK_INC:      
+0098 E6              130             MOV             A,@R0
+0099 2401            131             ADD             A,#1
+009B D4              132             DA              A
+009C B46015          133             CJNE    A,#60H,CLOCK_EX ;if one minute passed 
+009F E4              134             CLR             A
+00A0 F6              135             MOV             @R0,A
+00A1 08              136             INC             R0
+00A2 E6              137             MOV             A,@R0
+00A3 2401            138             ADD             A,#1
+00A5 D4              139             DA              A
+00A6 B4600B          140             CJNE    A,#60H,CLOCK_EX ;if one hour passed
+00A9 E4              141             CLR             A
+00AA F6              142             MOV             @R0,A
+00AB 08              143             INC             R0
+00AC E6              144             MOV             A,@R0
+00AD 2401            145             ADD             A,#1
+00AF D4              146             DA              A
+00B0 B42401          147             CJNE    A,#24H,CLOCK_EX ;if 24 hours passed
+00B3 E4              148             CLR             A
+00B4                 149     CLOCK_EX:
+00B4 F6              150             MOV             @R0,A   
+00B5 22              151             RET
+                     152             
+00B6                 153     PRINT_TIME:     
+00B6 7930            154             MOV             R1,#DISP_BUF
+00B8 7F02            155             MOV             R7,#2
+00BA 900193          156             MOV             DPTR,#TO_7SEG
+                     157             ; Wydruk sek i min.
+00BD                 158     PRT_LP: 
+00BD E6              159             MOV             A,@R0
+00BE 540F            160             ANL             A,#0FH
+00C0 93              161             MOVC    A,@A + DPTR
+00C1 F7              162             MOV             @R1,A
+00C2 09              163             INC             R1
+00C3 E6              164             MOV             A,@R0
+00C4 C4              165             SWAP    A
+00C5 540F            166             ANL             A,#0FH
+00C7 93              167             MOVC    A,@A + DPTR
+00C8 F7              168             MOV             @R1,A
+00C9 09              169             INC             R1
+00CA 08              170             INC             R0
+00CB DFF0            171             DJNZ    R7,PRT_LP       
+                     172             ; Wydruk godzin z usunieciem 
+                     173             ; zera niznaczacego dla dziesiatek
+00CD E6              174             MOV             A,@R0
+00CE 540F            175             ANL             A,#0FH
+00D0 93              176             MOVC    A,@A + DPTR
+00D1 F7              177             MOV             @R1,A
+00D2 09              178             INC             R1
+00D3 E6              179             MOV             A,@R0
+00D4 C4              180             SWAP    A
+00D5 540F            181             ANL             A,#0FH
+00D7 7002            182             JNZ             PRT_BL
+00D9 740F            183             MOV             A,#0FH
+00DB                 184     PRT_BL:
+00DB 93              185             MOVC    A,@A + DPTR
+00DC F7              186             MOV             @R1,A
+00DD 22              187             RET
+                     188             
+A51 MACRO ASSEMBLER  P1                                                                   11/26/2018 09:23:22 PAGE     4
+
+                     189     ;----------------------------------------------------------
+                     190     ; Parametry sterownika klawiatur
+                     191     ;----------------------------------------------------------
+                     192     
+  0002               193     KB_DET_DY       EQU     2;              Liczba cykli do wykrycia klawisza       
+  00C8               194     KB_TPM_DY       EQU     200;    Liczba cykli do rozp. auto. powt.
+  0032               195     KB_REP_DY       EQU     50;             Liczba cykli okresu auto. powt.
+  0003               196     KB_REL_DY       EQU     3;              Liczba cykli do wykrycia zwolnienia klaw.       
+  000F               197     KB_REP_MASK     EQU     0Fh;    Klawisze powtarzane - maska bitowa      
+                     198     
+                     199     ;----------------------------------------------------------
+                     200     ; Stany automatu sterownika klawiatury
+                     201     ;----------------------------------------------------------
+  0000               202     ST_KB_FIRST     EQU     0
+  0001               203     ST_KB_NEXT      EQU     1
+  0002               204     ST_KB_REP       EQU     2
+  0003               205     ST_KB_REL       EQU 3   
+                     206             
+00DE                 207     KB_DRV: 
+00DE E5A0            208             MOV             A,KB_IN
+00E0 F4              209             CPL             A               
+00E1 AF37            210             MOV             R7,KB_STATE     
+00E3                 211     KB_FIRST:
+00E3 BF0017          212             CJNE    R7,#ST_KB_FIRST,KB_NEXT 
+00E6 7E08            213             MOV             R6,#8
+00E8 7D00            214             MOV             R5,#0
+00EA                 215     KB_CHK_LP:      
+00EA 23              216             RL              A
+00EB 30E001          217             JNB             ACC.0,KB_CHK_NK
+00EE 0D              218             INC             R5
+00EF                 219     KB_CHK_NK:      
+00EF DEF9            220             DJNZ    R6,KB_CHK_LP
+                     221             ;Check valid key pattern (only 1-key)
+00F1 BD0108          222             CJNE    R5,#1,KB_CHK_EX
+00F4 F539            223             MOV             KB_PREV,A
+00F6 753802          224             MOV             KB_TMR,#KB_DET_DY
+00F9 753701          225             MOV             KB_STATE,#ST_KB_NEXT
+00FC                 226     KB_CHK_EX:      
+00FC 22              227             RET     
+00FD                 228     KB_NEXT:
+00FD BF011D          229             CJNE    R7,#ST_KB_NEXT,KB_REP
+0100 B53913          230             CJNE    A,KB_PREV, KB_NEXT_REL
+0103 D5380F          231             DJNZ    KB_TMR,KB_NEXT_EX
+0106 D201            232             SETB    RQ_KB
+0108 85393A          233             MOV             KB_REG,KB_PREV
+010B 540F            234             ANL             A,#KB_REP_MASK
+010D 6007            235             JZ              KB_NEXT_REL     
+010F                 236     KB_NEXT_REP:
+010F 753702          237             MOV             KB_STATE,#ST_KB_REP
+0112 7538C8          238             MOV             KB_TMR,#KB_TPM_DY       
+0115                 239     KB_NEXT_EX:             
+0115 22              240             RET     
+0116                 241     KB_NEXT_REL:    
+0116 753703          242             MOV             KB_STATE,#ST_KB_REL
+0119 753803          243             MOV             KB_TMR,#KB_REL_DY
+011C 22              244             RET
+                     245     
+011D                 246     KB_REP:
+011D BF020F          247             CJNE    R7,#ST_KB_REP,KB_REL
+0120 B539F3          248             CJNE    A,KB_PREV,KB_NEXT_REL
+0123 D53808          249             DJNZ    KB_TMR,KB_REP_EX        
+0126 753832          250             MOV             KB_TMR,#KB_REP_DY
+0129 D201            251             SETB    RQ_KB
+012B 85393A          252             MOV             KB_REG,KB_PREV
+012E                 253     KB_REP_EX:      
+012E 22              254             RET
+A51 MACRO ASSEMBLER  P1                                                                   11/26/2018 09:23:22 PAGE     5
+
+                     255     
+012F                 256     KB_REL:
+012F BF0309          257             CJNE    R7,#ST_KB_REL,KB_ERR
+0132 6004            258             JZ              KB_REL_CONT
+0134 753803          259             MOV             KB_TMR,#3
+0137 22              260             RET
+0138                 261     KB_REL_CONT:    
+0138 D53803          262             DJNZ    KB_TMR,KB_EX
+013B                 263     KB_ERR: 
+013B 753700          264             MOV             KB_STATE,#ST_KB_FIRST   
+013E                 265     KB_EX:  
+013E 22              266             RET
+                     267             
+                     268             
+                     269     ;--------------------------------------------
+                     270     ; Przerwanie dedykowane obsludze RTC
+                     271     ; f(T0) = 100Hz
+                     272     ;--------------------------------------------   
+                     273     
+013F                 274     ON_T0_ISR:
+013F 758CE8          275             MOV             TH0,#TH0_INIT ; TH0 - most significant bit, TL0 least significant b
+                             it
+0142 C0D0            276             PUSH    PSW
+0144 C0E0            277             PUSH    ACC     
+0146 D2D3            278             SETB    RS0
+0148 11DE            279             ACALL   KB_DRV
+014A D53B10          280             DJNZ    T0_DV,T0_ISR_EX
+014D E53B            281             MOV             A,T0_DV
+014F B43202          282             CJNE    A,#50,T0_NO_HS
+0152 D202            283             SETB    RQ_HS
+0154                 284     T0_NO_HS:       
+0154 753B64          285             MOV             T0_DV,#T0_DV_INIT       
+                     286             ;Increment clock time
+0157 783C            287             MOV             R0,#CLOCK
+0159 1198            288             ACALL   CLOCK_INC
+015B D200            289             SETB    CL_HC
+015D                 290     T0_ISR_EX:
+015D D0E0            291             POP             ACC     
+015F D0D0            292             POP             PSW
+0161 32              293             RETI    
+                     294     
+0162                 295     ON_T1_ISR:
+0162 758DFB          296             MOV             TH1,#TH1_INIT
+0165 C0D0            297             PUSH    PSW
+0167 C0E0            298             PUSH    ACC     
+0169 C082            299             PUSH    DPL
+016B C083            300             PUSH    DPH
+016D D2D3            301             SETB    RS0
+016F 7590FF          302             MOV P1,#0FFh
+                     303             
+0172 E536            304             MOV A,DISP_PTR
+0174 2430            305             ADD A,#DISP_BUF
+0176 F8              306             MOV R0,A
+0177 8680            307             MOV P0,@R0
+                     308             
+0179 E536            309             MOV A,DISP_PTR
+017B 9001A3          310             MOV DPTR,#TO_RING
+017E 93              311             MOVC A,@A + DPTR
+017F F590            312             MOV P1,A
+                     313             
+0181 E536            314             MOV A,DISP_PTR
+0183 04              315             INC A
+0184 B40601          316             CJNE A,#DISP_MAX,T1_ISR_DP_OK
+0187 E4              317             CLR A
+0188                 318     T1_ISR_DP_OK:
+0188 F536            319             MOV DISP_PTR,A
+A51 MACRO ASSEMBLER  P1                                                                   11/26/2018 09:23:22 PAGE     6
+
+018A                 320     T1_ISR_EX:      
+018A D083            321             POP             DPH
+018C D082            322             POP             DPL
+018E D0E0            323             POP             ACC     
+0190 D0D0            324             POP             PSW
+0192 32              325             RETI
+                     326             
+                     327     
+                     328     
+                     329     
+0193                 330     INT0_ISR:
+0193                 331     INT1_ISR:
+                     332     
+0193                 333     TO_7SEG:        
+0193 DE82ECE6        334             DB      0xDE, 0x82, 0xEC, 0xE6
+0197 B2767EC2        335             DB      0xB2, 0x76, 0x7E, 0xC2
+019B FEF61CBA        336             DB      0xFE, 0xF6, 0x1C, 0xBA
+019F F8FA2000        337             DB      0xF8, 0xFA, 0x20, 0x00
+                     338                     
+01A3                 339     TO_RING:                
+01A3 FEFDFBF7        340             DB 0xFE, 0xFD, 0xFB, 0xF7, 0xEF, 0xDF,0xBF,0x7F
+01A7 EFDFBF7F                
+                     341             
+                     342     END
+                                     
+                                     
+A51 MACRO ASSEMBLER  P1                                                                   11/26/2018 09:23:22 PAGE     7
+
+SYMBOL TABLE LISTING
+------ ----- -------
+
+
+N A M E             T Y P E  V A L U E   ATTRIBUTES
+
+ACC. . . . . . . .  D ADDR   00E0H   A   
+CLOCK. . . . . . .  D ADDR   003CH   A   
+CLOCK_EX . . . . .  C ADDR   00B4H   A   
+CLOCK_INC. . . . .  C ADDR   0098H   A   
+CL_HC. . . . . . .  B ADDR   0020H.0 A   
+CL_HR. . . . . . .  D ADDR   003EH   A   
+CL_MIN . . . . . .  D ADDR   003DH   A   
+CL_SEC . . . . . .  D ADDR   003CH   A   
+DISP_BUF . . . . .  D ADDR   0030H   A   
+DISP_MAX . . . . .  N NUMB   0006H   A   
+DISP_PTR . . . . .  D ADDR   0036H   A   
+DPH. . . . . . . .  D ADDR   0083H   A   
+DPL. . . . . . . .  D ADDR   0082H   A   
+IE . . . . . . . .  D ADDR   00A8H   A   
+INIT . . . . . . .  C ADDR   001DH   A   
+INIT_INT . . . . .  C ADDR   003BH   A   
+INIT_LP. . . . . .  C ADDR   0025H   A   
+INIT_STACK . . . .  C ADDR   0029H   A   
+INIT_TIMER . . . .  C ADDR   002CH   A   
+INT0_ISR . . . . .  C ADDR   0193H   A   
+INT1_ISR . . . . .  C ADDR   0193H   A   
+KB_CHK_EX. . . . .  C ADDR   00FCH   A   
+KB_CHK_LP. . . . .  C ADDR   00EAH   A   
+KB_CHK_NK. . . . .  C ADDR   00EFH   A   
+KB_DET_DY. . . . .  N NUMB   0002H   A   
+KB_DRV . . . . . .  C ADDR   00DEH   A   
+KB_ERR . . . . . .  C ADDR   013BH   A   
+KB_EX. . . . . . .  C ADDR   013EH   A   
+KB_FIRST . . . . .  C ADDR   00E3H   A   
+KB_IN. . . . . . .  D ADDR   00A0H   A   
+KB_NEXT. . . . . .  C ADDR   00FDH   A   
+KB_NEXT_EX . . . .  C ADDR   0115H   A   
+KB_NEXT_REL. . . .  C ADDR   0116H   A   
+KB_NEXT_REP. . . .  C ADDR   010FH   A   
+KB_PREV. . . . . .  D ADDR   0039H   A   
+KB_REG . . . . . .  D ADDR   003AH   A   
+KB_REL . . . . . .  C ADDR   012FH   A   
+KB_REL_CONT. . . .  C ADDR   0138H   A   
+KB_REL_DY. . . . .  N NUMB   0003H   A   
+KB_REP . . . . . .  C ADDR   011DH   A   
+KB_REP_DY. . . . .  N NUMB   0032H   A   
+KB_REP_EX. . . . .  C ADDR   012EH   A   
+KB_REP_MASK. . . .  N NUMB   000FH   A   
+KB_STATE . . . . .  D ADDR   0037H   A   
+KB_TMR . . . . . .  D ADDR   0038H   A   
+KB_TPM_DY. . . . .  N NUMB   00C8H   A   
+MAIN_LOOP. . . . .  C ADDR   0049H   A   
+MAX_DISP . . . . .  N NUMB   0006H   A   
+ON_CL_UPD. . . . .  C ADDR   0054H   A   
+ON_HS. . . . . . .  C ADDR   0060H   A   
+ON_KEY . . . . . .  C ADDR   0068H   A   
+ON_KEY_DEC . . . .  C ADDR   0084H   A   
+ON_KEY_ENTER . . .  C ADDR   0094H   A   
+ON_KEY_ESC . . . .  C ADDR   0090H   A   
+ON_KEY_INC . . . .  C ADDR   007EH   A   
+ON_KEY_NEXT. . . .  C ADDR   0088H   A   
+ON_KEY_PREV. . . .  C ADDR   008CH   A   
+ON_T0_ISR. . . . .  C ADDR   013FH   A   
+ON_T1_ISR. . . . .  C ADDR   0162H   A   
+P0 . . . . . . . .  D ADDR   0080H   A   
+A51 MACRO ASSEMBLER  P1                                                                   11/26/2018 09:23:22 PAGE     8
+
+P1 . . . . . . . .  D ADDR   0090H   A   
+P2 . . . . . . . .  D ADDR   00A0H   A   
+P3 . . . . . . . .  D ADDR   00B0H   A   
+PRINT_TIME . . . .  C ADDR   00B6H   A   
+PRT_BL . . . . . .  C ADDR   00DBH   A   
+PRT_LP . . . . . .  C ADDR   00BDH   A   
+PSW. . . . . . . .  D ADDR   00D0H   A   
+RESET. . . . . . .  C ADDR   0000H   A   
+RQ_HS. . . . . . .  B ADDR   0020H.2 A   
+RQ_KB. . . . . . .  B ADDR   0020H.1 A   
+RS0. . . . . . . .  B ADDR   00D0H.3 A   
+SP . . . . . . . .  D ADDR   0081H   A   
+ST_KB_FIRST. . . .  N NUMB   0000H   A   
+ST_KB_NEXT . . . .  N NUMB   0001H   A   
+ST_KB_REL. . . . .  N NUMB   0003H   A   
+ST_KB_REP. . . . .  N NUMB   0002H   A   
+T0_DV. . . . . . .  D ADDR   003BH   A   
+T0_DV_INIT . . . .  N NUMB   0064H   A   
+T0_ISR_EX. . . . .  C ADDR   015DH   A   
+T0_NO_HS . . . . .  C ADDR   0154H   A   
+T1_ISR_DP_OK . . .  C ADDR   0188H   A   
+T1_ISR_EX. . . . .  C ADDR   018AH   A   
+TCON . . . . . . .  D ADDR   0088H   A   
+TH0. . . . . . . .  D ADDR   008CH   A   
+TH0_INIT . . . . .  N NUMB   00E8H   A   
+TH1. . . . . . . .  D ADDR   008DH   A   
+TH1_INIT . . . . .  N NUMB   00FBH   A   
+TMOD . . . . . . .  D ADDR   0089H   A   
+TO_7SEG. . . . . .  C ADDR   0193H   A   
+TO_RING. . . . . .  C ADDR   01A3H   A   
+
+
+REGISTER BANK(S) USED: 0 
+
+
+ASSEMBLY COMPLETE.  0 WARNING(S), 0 ERROR(S)

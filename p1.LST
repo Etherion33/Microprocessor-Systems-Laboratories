@@ -1,0 +1,352 @@
+A51 MACRO ASSEMBLER  P1                                                                   11/25/2018 12:31:41 PAGE     1
+
+
+MACRO ASSEMBLER A51 V8.2.7.0
+OBJECT MODULE PLACED IN p1.OBJ
+ASSEMBLER INVOKED BY: C:\Keil_v5\C51\BIN\A51.exe E:\Pulpit\Studia\MICROPROCESSORS SYSTEMS\p1.asm DEBUG SYMBOLS OBJECT(p1
+                      .OBJ) 
+
+LOC  OBJ            LINE     SOURCE
+
+                       1     ;----------------------------------------------------------
+                       2     ; Polaczenie dwoch zagadnien
+                       3     ; 1. Wyswietlanie multiplekoswane
+                       4     ; 2. Odmierzanie czasu
+                       5     ; 3. Wyswietlanie beizacego czasu
+                       6     ; P0 - Segemnty
+                       7     ; P1 - Cyfry
+                       8     ; P3 - proponowana klawiatura
+                       9     ;
+                      10     ; Zadanie do rozwiazania
+                      11     ; 1. Uzupelnic procedure drukujaca o kropki migajace z 
+                      12     ;    czestotliwoscia 1Hz i wypelnieniem 50%
+                      13     ;    Wykorzystac metode znacznika zadajacego usuniecia
+                      14     ;    kropek z wyswietlania
+                      15     ; 2. Dolaczyc obsluge klawiatury oraz dodac procedury
+                      16     ;    ustawiania zegara
+                      17     ;  - pozycja ustawiana pulsuje z czest. 1Hz 
+                      18     ;    i wypelnieniem 50 %
+                      19     ;  - cyklicznie przemieszczamy sie pomiedzy minutami 
+                      20     ;    i godzinami
+                      21     ;  - zmiana ustawienia minut zeruje sekundy oraz ustawia
+                      22     ;    preskaler T0_DV na wartosc poczatkowa
+                      23     ;----------------------------------------------------------
+                      24     
+----                  25     DSEG    AT 28H  
+                      26     ; Predefinowane stale
+  0010                27     TH0_INIT        EQU     16
+  000A                28     T0_DV_INIT      EQU     10      
+  00E8                29     TH1_INIT        EQU     232
+                      30     
+                      31     ; Wyswietlanie multiplekoswane
+  0006                32     DISP_MAX        EQU     6       
+0028                  33     DISP_BUF:       DS      DISP_MAX
+002E                  34     DISP_PTR:       DS      1
+                      35     
+                      36     ; Struktura zegarowa
+002F                  37     CLOCK:  
+002F                  38     CL_SEC:         DS      1
+0030                  39     CL_MIN:         DS      1
+0031                  40     CL_HR:          DS      1
+                      41     
+                      42     ; Dzielnik programowy zegara RTC
+0032                  43     T0_DV:          DS      1
+                      44             
+----                  45     BSEG    AT      0
+                      46     
+                      47     ; Znacznik zmiany stanu zegara RTC
+                      48     ; CL_HC -> Clock has changed
+0000                  49     CL_HC:          DBIT    1
+                      50     
+                      51     
+----                  52     CSEG    AT      0
+                      53                     
+0000                  54     RESET:  
+0000 802B             55             JMP             INIT
+0003                  56     ORG 0003H
+0003 01EE             57             JMP             INT0_ISR
+A51 MACRO ASSEMBLER  P1                                                                   11/25/2018 12:31:41 PAGE     2
+
+000B                  58     ORG 00BH
+000B 01A2             59             JMP             T0_ISR
+0013                  60     ORG 0013H
+0013 01EE             61             JMP             INT1_ISR
+001B                  62     ORG 001BH
+001B 01C0             63             JMP             T1_ISR
+0023                  64     ORG 0023H
+0023 01EE             65             JMP             UART_ISR
+002B                  66     ORG 002BH
+002B 01EE             67             JMP             T2_ISR
+                      68     
+002D                  69     INIT:
+                      70             ; Memory clear
+002D 7F78             71             MOV             R7,#120;
+002F 7808             72             MOV             R0,#8
+0031 7400             73             MOV             A,#0;
+0033                  74     INIT_LP:
+0033 F6               75             MOV             @R0,A
+0034 08               76             INC             R0
+0035 DFFC             77             DJNZ    R7,INIT_LP
+0037                  78     INIT_STACK:
+0037 75817F           79             MOV             SP,#7FH
+                      80             
+003A                  81     INIT_TIMER:
+003A 758C10           82             MOV             TH0,#TH0_INIT
+003D 758DE8           83             MOV             TH1,#TH1_INIT
+                      84     
+                      85     ;GATE|C/nT|M1|M0
+                      86     ;MODE 0 - 8bit TH + div 5bit  TL
+                      87     ;MODE 1 - 16 bit TH + TL
+                      88     ;MODE 2 - 8 bit TH ld TL
+                      89     ;MODE 3 - 2 x 8bit TL->T0, TH->T1
+0040 758911           90             MOV             TMOD,#11H
+                      91     
+                      92     ;TF1|TR1|TF0|TR0|IE1|IT1|IE0|IT1
+                      93     ;TFx - Timer OVF INT trigger
+                      94     ;TRx - Timer Run
+                      95     ;IEx - Ext Interrupt detection (Auto CLR after reception)
+                      96     ;ITx - 0 - Level/ 1 - Edge Int triggering
+0043 758850           97             MOV             TCON,#50H
+                      98     
+0046                  99     INIT_INT:
+                     100     ;EA|-|ET2|ES|ET1|EX1|ET0|EX0
+                     101     ;EA - Global Int Enable
+                     102     ;ET - Timer
+                     103     ;ES - Serial
+                     104     ;EX - External
+0046 75A88A          105             MOV             IE,#10001010B
+                     106             
+0049 7586FF          107             MOV             P0 + 6,#0FFH ;Port overdrive            
+004C 75320A          108             MOV             T0_DV,#T0_DV_INIT
+004F D200            109             SETB    CL_HC; Request time printing
+0051                 110     MAIN_LOOP:
+0051 300006          111             JNB             CL_HC,CL_UP_END
+0054 C200            112             CLR             CL_HC
+0056 782F            113             MOV             R0,#CLOCK
+0058 117A            114             ACALL   PRINT_TIME      
+005A                 115     CL_UP_END:      
+                     116             ;--------------------------------------------
+                     117             ; Inne zadania realizowane w petli glownej
+                     118             ;--------------------------------------------
+                     119             
+005A 80F5            120             SJMP    MAIN_LOOP
+                     121     
+                     122     ;--------------------------------------------
+                     123     ; Inkrementuje czas o 1 sek.
+A51 MACRO ASSEMBLER  P1                                                                   11/25/2018 12:31:41 PAGE     3
+
+                     124     ; R0 - wskaznik do struktury czas
+                     125     ;--------------------------------------------
+                     126     
+005C                 127     CLOCK_INC:      
+005C E6              128             MOV             A,@R0
+005D 2401            129             ADD             A,#1
+005F D4              130             DA              A
+0060 B46015          131             CJNE    A,#60H,CLOCK_EX
+0063 E4              132             CLR             A
+0064 F6              133             MOV             @R0,A
+0065 08              134             INC             R0
+0066 E6              135             MOV             A,@R0
+0067 2401            136             ADD             A,#1
+0069 D4              137             DA              A
+006A B4600B          138             CJNE    A,#60H,CLOCK_EX
+006D E4              139             CLR             A
+006E F6              140             MOV             @R0,A
+006F 08              141             INC             R0
+0070 E6              142             MOV             A,@R0
+0071 2401            143             ADD             A,#1
+0073 D4              144             DA              A
+0074 B42401          145             CJNE    A,#24H,CLOCK_EX
+0077 E4              146             CLR             A
+0078                 147     CLOCK_EX:
+0078 F6              148             MOV             @R0,A   
+0079 22              149             RET
+                     150             
+                     151     ;--------------------------------------------
+                     152     ; Drukuje strukture czas w buforze wysw. LED
+                     153     ; R0 - wskaznik do struktury czas
+                     154     ; Czas zliczany w BCD wystrczy ekspansja
+                     155     ; tetrad
+                     156     ;--------------------------------------------   
+                     157                     
+007A                 158     PRINT_TIME:     
+007A 7928            159             MOV             R1,#DISP_BUF
+007C 7F02            160             MOV             R7,#2
+007E 9000EF          161             MOV             DPTR,#TO_7SEG
+                     162             ; Wydruk sek i min.
+0081                 163     PRT_LP: 
+0081 E6              164             MOV             A,@R0
+0082 540F            165             ANL             A,#0FH
+0084 93              166             MOVC    A,@A + DPTR
+0085 F7              167             MOV             @R1,A
+0086 09              168             INC             R1
+0087 E6              169             MOV             A,@R0
+0088 C4              170             SWAP    A
+0089 540F            171             ANL             A,#0FH
+008B 93              172             MOVC    A,@A + DPTR
+008C F7              173             MOV             @R1,A
+008D 09              174             INC             R1
+008E 08              175             INC             R0
+008F DFF0            176             DJNZ    R7,PRT_LP       
+                     177             ; Wydruk godzin z usunieciem 
+                     178             ; zera niznaczacego dla dziesiatek
+0091 E6              179             MOV             A,@R0
+0092 540F            180             ANL             A,#0FH
+0094 93              181             MOVC    A,@A + DPTR
+0095 F7              182             MOV             @R1,A
+0096 09              183             INC             R1
+0097 E6              184             MOV             A,@R0
+0098 C4              185             SWAP    A
+0099 540F            186             ANL             A,#0FH
+009B 7002            187             JNZ             PRT_BL
+009D 740F            188             MOV             A,#0FH
+009F                 189     PRT_BL:
+A51 MACRO ASSEMBLER  P1                                                                   11/25/2018 12:31:41 PAGE     4
+
+009F 93              190             MOVC    A,@A + DPTR
+00A0 F7              191             MOV             @R1,A
+00A1 22              192             RET
+                     193             
+                     194     ;--------------------------------------------
+                     195     ; Przerwanie dedykowane obsludze RTC
+                     196     ; f(T0) = 10Hz
+                     197     ;--------------------------------------------   
+                     198     
+00A2                 199     T0_ISR:
+00A2 758C10          200             MOV             TH0,#10H
+00A5 C0D0            201             PUSH    PSW
+00A7 C0E0            202             PUSH    ACC     
+00A9 E8              203             MOV             A,R0
+00AA C0E0            204             PUSH    ACC
+00AC D53209          205             DJNZ    T0_DV,T0_ISR_EX
+00AF 75320A          206             MOV             T0_DV,#10       
+                     207             ;Increment clock time
+00B2 782F            208             MOV             R0,#CLOCK
+00B4 115C            209             ACALL   CLOCK_INC
+00B6 D200            210             SETB    CL_HC
+00B8                 211     T0_ISR_EX:
+00B8 D0E0            212             POP             ACC
+00BA F8              213             MOV             R0,A
+00BB D0E0            214             POP             ACC
+00BD D0D0            215             POP             PSW
+00BF 32              216             RETI    
+                     217     
+                     218     ;--------------------------------------------
+                     219     ; Przerwanie dedykowane obsludze wysw. LED
+                     220     ; f(T1) = 480Hz
+                     221     ;--------------------------------------------
+                     222     
+00C0                 223     T1_ISR:
+                     224             ;Adjust timer to 480Hz -> 1280 cycles only!!!
+00C0 758DFB          225             MOV             TH1,#251
+00C3 C0D0            226             PUSH    PSW
+00C5 C0E0            227             PUSH    ACC
+00C7 E8              228             MOV             A,R0
+00C8 C0E0            229             PUSH    ACC     
+                     230             ;Turn off display
+00CA 7590FF          231             MOV             P1,#0FFh
+                     232             ;Update segemnts control P0 <- DISP_BUF[DISP_PTR]
+00CD E52E            233             MOV             A,DISP_PTR
+00CF 2428            234             ADD             A,#DISP_BUF
+00D1 F8              235             MOV             R0,A
+00D2 8680            236             MOV             P0,@R0
+                     237             ;Update ring counter P1 <- TO_RING[DISP_PTR]
+00D4 E52E            238             MOV             A,DISP_PTR
+00D6 9000FF          239             MOV             DPTR,#TO_RING
+00D9 93              240             MOVC    A,@A + DPTR     
+00DA F590            241             MOV             P1,A
+                     242             ;Increment display pointer 
+00DC E52E            243             MOV             A,DISP_PTR
+00DE 04              244             INC             A
+00DF B40603          245             CJNE    A,#DISP_MAX,T1_ISR_EX
+00E2 E4              246             CLR             A
+00E3 F52E            247             MOV             DISP_PTR,A
+00E5                 248     T1_ISR_EX:      
+00E5 D0E0            249             POP             ACC
+00E7 A8E0            250             MOV             R0,ACC
+00E9 D0E0            251             POP             ACC
+00EB D0D0            252             POP             PSW
+00ED 32              253             RETI
+                     254     
+                     255     ;--------------------------------------------
+A51 MACRO ASSEMBLER  P1                                                                   11/25/2018 12:31:41 PAGE     5
+
+                     256     ; Niewykorzystywane przerwania
+                     257     ;--------------------------------------------
+00EE                 258     INT0_ISR:
+00EE                 259     INT1_ISR:
+00EE                 260     UART_ISR:
+00EE                 261     T2_ISR:
+00EE 32              262             RETI    
+                     263             
+00EF                 264     TO_7SEG:        
+00EF DE82ECE6        265             DB      0xDE, 0x82, 0xEC, 0xE6
+00F3 B2767EC2        266             DB      0xB2, 0x76, 0x7E, 0xC2
+00F7 FEF61CBA        267             DB      0xFE, 0xF6, 0x1C, 0xBA
+00FB F8FA2000        268             DB      0xF8, 0xFA, 0x20, 0x00
+                     269                     
+00FF                 270     TO_RING:                
+00FF FEFDFBF7        271             DB 0xFE, 0xFD, 0xFB, 0xF7, 0xEF, 0xDF
+0103 EFDF                    
+                     272     
+                     273     
+                     274     END     
+A51 MACRO ASSEMBLER  P1                                                                   11/25/2018 12:31:41 PAGE     6
+
+SYMBOL TABLE LISTING
+------ ----- -------
+
+
+N A M E             T Y P E  V A L U E   ATTRIBUTES
+
+ACC. . . . . . . .  D ADDR   00E0H   A   
+CLOCK. . . . . . .  D ADDR   002FH   A   
+CLOCK_EX . . . . .  C ADDR   0078H   A   
+CLOCK_INC. . . . .  C ADDR   005CH   A   
+CL_HC. . . . . . .  B ADDR   0020H.0 A   
+CL_HR. . . . . . .  D ADDR   0031H   A   
+CL_MIN . . . . . .  D ADDR   0030H   A   
+CL_SEC . . . . . .  D ADDR   002FH   A   
+CL_UP_END. . . . .  C ADDR   005AH   A   
+DISP_BUF . . . . .  D ADDR   0028H   A   
+DISP_MAX . . . . .  N NUMB   0006H   A   
+DISP_PTR . . . . .  D ADDR   002EH   A   
+IE . . . . . . . .  D ADDR   00A8H   A   
+INIT . . . . . . .  C ADDR   002DH   A   
+INIT_INT . . . . .  C ADDR   0046H   A   
+INIT_LP. . . . . .  C ADDR   0033H   A   
+INIT_STACK . . . .  C ADDR   0037H   A   
+INIT_TIMER . . . .  C ADDR   003AH   A   
+INT0_ISR . . . . .  C ADDR   00EEH   A   
+INT1_ISR . . . . .  C ADDR   00EEH   A   
+MAIN_LOOP. . . . .  C ADDR   0051H   A   
+P0 . . . . . . . .  D ADDR   0080H   A   
+P1 . . . . . . . .  D ADDR   0090H   A   
+PRINT_TIME . . . .  C ADDR   007AH   A   
+PRT_BL . . . . . .  C ADDR   009FH   A   
+PRT_LP . . . . . .  C ADDR   0081H   A   
+PSW. . . . . . . .  D ADDR   00D0H   A   
+RESET. . . . . . .  C ADDR   0000H   A   
+SP . . . . . . . .  D ADDR   0081H   A   
+T0_DV. . . . . . .  D ADDR   0032H   A   
+T0_DV_INIT . . . .  N NUMB   000AH   A   
+T0_ISR . . . . . .  C ADDR   00A2H   A   
+T0_ISR_EX. . . . .  C ADDR   00B8H   A   
+T1_ISR . . . . . .  C ADDR   00C0H   A   
+T1_ISR_EX. . . . .  C ADDR   00E5H   A   
+T2_ISR . . . . . .  C ADDR   00EEH   A   
+TCON . . . . . . .  D ADDR   0088H   A   
+TH0. . . . . . . .  D ADDR   008CH   A   
+TH0_INIT . . . . .  N NUMB   0010H   A   
+TH1. . . . . . . .  D ADDR   008DH   A   
+TH1_INIT . . . . .  N NUMB   00E8H   A   
+TMOD . . . . . . .  D ADDR   0089H   A   
+TO_7SEG. . . . . .  C ADDR   00EFH   A   
+TO_RING. . . . . .  C ADDR   00FFH   A   
+UART_ISR . . . . .  C ADDR   00EEH   A   
+
+
+REGISTER BANK(S) USED: 0 
+
+
+ASSEMBLY COMPLETE.  0 WARNING(S), 0 ERROR(S)

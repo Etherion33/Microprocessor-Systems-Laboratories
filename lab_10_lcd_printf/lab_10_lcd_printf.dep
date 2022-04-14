@@ -1,0 +1,199 @@
+<?xml version="1.0" encoding="iso-8859-1"?>
+
+<project>
+  <fileVersion>2</fileVersion>
+  <fileChecksum>2400324427</fileChecksum>
+  <configuration>
+    <name>Debug</name>
+    <outputs>
+      <file>$PROJ_DIR$\..\lib\keyb_drv.c</file>
+      <file>$PROJ_DIR$\..\lib\hd44780.c</file>
+      <file>$PROJ_DIR$\lab_10_lcd_printf.c</file>
+      <file>$PROJ_DIR$\..\lib\queue.c</file>
+      <file>$PROJ_DIR$\..\lib\rtc_simple.c</file>
+      <file>$TOOLKIT_DIR$\inc\iom128.h</file>
+      <file>$PROJ_DIR$\Debug\Obj\lab_10_lcd_printf.pbi</file>
+      <file>$TOOLKIT_DIR$\inc\ioavr.h</file>
+      <file>$PROJ_DIR$\Debug\Obj\keyb_drv.r90</file>
+      <file>$TOOLKIT_DIR$\inc\bitdefinitions\iom128.inc</file>
+      <file>$TOOLKIT_DIR$\inc\intrinsics.h</file>
+      <file>$PROJ_DIR$\Debug\Obj\lab_10_lcd_printf.r90</file>
+      <file>$TOOLKIT_DIR$\inc\inavr.h</file>
+      <file>$TOOLKIT_DIR$\inc\iomacro.h</file>
+      <file>$PROJ_DIR$\Debug\Obj\rtc_simple.r90</file>
+      <file>$PROJ_DIR$\Debug\Obj\queue.r90</file>
+      <file>$PROJ_DIR$\Debug\Obj\hd44780.r90</file>
+      <file>$PROJ_DIR$\..\lib\hd44780.h</file>
+      <file>$PROJ_DIR$\Debug\Obj\rtc_simple.pbi</file>
+      <file>$PROJ_DIR$\Debug\Obj\lab_10_lcd_printf.pbd</file>
+      <file>$PROJ_DIR$\Debug\Obj\queue.pbi</file>
+      <file>$PROJ_DIR$\Debug\Obj\keyb_drv.pbi</file>
+      <file>$PROJ_DIR$\Debug\Obj\hd44780.pbi</file>
+      <file>$PROJ_DIR$\Debug\List\rtc_simple.lst</file>
+      <file>$PROJ_DIR$\Debug\List\lab_10_lcd_printf.lst</file>
+      <file>$PROJ_DIR$\Debug\List\hd44780.lst</file>
+      <file>$PROJ_DIR$\Debug\Exe\lab_10_lcd_printf.d90</file>
+      <file>$PROJ_DIR$\..\lib\keyb_drv.h</file>
+      <file>$TOOLKIT_DIR$\inc\clib\sysmac.h</file>
+      <file>$PROJ_DIR$\..\lib\queue.h</file>
+      <file>$TOOLKIT_DIR$\inc\clib\string.h</file>
+      <file>$PROJ_DIR$\Debug\List\lab_10_lcd_printf.map</file>
+      <file>$TOOLKIT_DIR$\src\template\cfgm128.xcl</file>
+      <file>$TOOLKIT_DIR$\lib\clib\cl3s-ec_mul.r90</file>
+      <file>$TOOLKIT_DIR$\src\template\cfg3soim.xcl</file>
+      <file>$PROJ_DIR$\Debug\List\keyb_drv.lst</file>
+      <file>$PROJ_DIR$\..\lab_09_hd44\lab_09_hd44.cpp</file>
+      <file>$PROJ_DIR$\..\lib\rtc_simple.h</file>
+      <file>$TOOLKIT_DIR$\inc\clib\stdio.h</file>
+      <file>$TOOLKIT_DIR$\inc\clib\stdarg.h</file>
+      <file>$TOOLKIT_DIR$\inc\clib\pgmspace.h</file>
+      <file>$PROJ_DIR$\Debug\List\queue.lst</file>
+      <file>$PROJ_DIR$\..\lab_01\main.c</file>
+    </outputs>
+    <file>
+      <name>[ROOT_NODE]</name>
+      <outputs>
+        <tool>
+          <name>XLINK</name>
+          <file> 26 31</file>
+        </tool>
+      </outputs>
+    </file>
+    <file>
+      <name>$PROJ_DIR$\..\lib\keyb_drv.c</name>
+      <outputs>
+        <tool>
+          <name>ICCAVR</name>
+          <file> 35 8</file>
+        </tool>
+        <tool>
+          <name>BICOMP</name>
+          <file> 21</file>
+        </tool>
+      </outputs>
+      <inputs>
+        <tool>
+          <name>ICCAVR</name>
+          <file> 7 5 13 9 30 28 27 29</file>
+        </tool>
+        <tool>
+          <name>BICOMP</name>
+          <file> 9 5 13 28 30 7 27 29</file>
+        </tool>
+      </inputs>
+    </file>
+    <file>
+      <name>$PROJ_DIR$\..\lib\hd44780.c</name>
+      <outputs>
+        <tool>
+          <name>ICCAVR</name>
+          <file> 25 16</file>
+        </tool>
+        <tool>
+          <name>BICOMP</name>
+          <file> 22</file>
+        </tool>
+      </outputs>
+      <inputs>
+        <tool>
+          <name>ICCAVR</name>
+          <file> 17 7 5 13 9 12 10</file>
+        </tool>
+        <tool>
+          <name>BICOMP</name>
+          <file> 13 12 5 7 9 10 17</file>
+        </tool>
+      </inputs>
+    </file>
+    <file>
+      <name>$PROJ_DIR$\lab_10_lcd_printf.c</name>
+      <outputs>
+        <tool>
+          <name>ICCAVR</name>
+          <file> 24 11</file>
+        </tool>
+        <tool>
+          <name>BICOMP</name>
+          <file> 6</file>
+        </tool>
+      </outputs>
+      <inputs>
+        <tool>
+          <name>ICCAVR</name>
+          <file> 7 5 13 9 12 10 38 28 39 40 30 37 17 29 27</file>
+        </tool>
+        <tool>
+          <name>BICOMP</name>
+          <file> 39 9 37 10 38 29 12 40 17 27 7 5 13 28 30</file>
+        </tool>
+      </inputs>
+    </file>
+    <file>
+      <name>$PROJ_DIR$\..\lib\queue.c</name>
+      <outputs>
+        <tool>
+          <name>ICCAVR</name>
+          <file> 41 15</file>
+        </tool>
+        <tool>
+          <name>BICOMP</name>
+          <file> 20</file>
+        </tool>
+      </outputs>
+      <inputs>
+        <tool>
+          <name>ICCAVR</name>
+          <file> 29</file>
+        </tool>
+        <tool>
+          <name>BICOMP</name>
+          <file> 29</file>
+        </tool>
+      </inputs>
+    </file>
+    <file>
+      <name>$PROJ_DIR$\..\lib\rtc_simple.c</name>
+      <outputs>
+        <tool>
+          <name>ICCAVR</name>
+          <file> 23 14</file>
+        </tool>
+        <tool>
+          <name>BICOMP</name>
+          <file> 18</file>
+        </tool>
+      </outputs>
+      <inputs>
+        <tool>
+          <name>ICCAVR</name>
+          <file> 37</file>
+        </tool>
+        <tool>
+          <name>BICOMP</name>
+          <file> 37</file>
+        </tool>
+      </inputs>
+    </file>
+    <file>
+      <name>$PROJ_DIR$\Debug\Exe\lab_10_lcd_printf.d90</name>
+      <outputs>
+        <tool>
+          <name>XLINK</name>
+          <file> 31</file>
+        </tool>
+      </outputs>
+      <inputs>
+        <tool>
+          <name>XLINK</name>
+          <file> 32 34 16 8 11 15 14 33</file>
+        </tool>
+      </inputs>
+    </file>
+  </configuration>
+  <configuration>
+    <name>Release</name>
+    <outputs/>
+  </configuration>
+</project>
+
+
